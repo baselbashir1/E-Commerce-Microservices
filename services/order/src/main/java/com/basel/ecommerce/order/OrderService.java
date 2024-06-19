@@ -7,6 +7,8 @@ import com.basel.ecommerce.kafka.OrderConfirmation;
 import com.basel.ecommerce.kafka.OrderProducer;
 import com.basel.ecommerce.orderline.OrderLineRequest;
 import com.basel.ecommerce.orderline.OrderLineService;
+import com.basel.ecommerce.payment.PaymentClient;
+import com.basel.ecommerce.payment.PaymentRequest;
 import com.basel.ecommerce.product.ProductClient;
 import com.basel.ecommerce.product.PurchaseRequest;
 import com.basel.ecommerce.product.PurchaseResponse;
@@ -27,6 +29,7 @@ public class OrderService {
     private final OrderMapper orderMapper;
     private final OrderLineService orderLineService;
     private final OrderProducer orderProducer;
+    private final PaymentClient paymentClient;
 
     public Integer createOrder(OrderRequest orderRequest) {
         CustomerResponse customer = customerClient.findCustomerById(orderRequest.customerId())
@@ -40,7 +43,14 @@ public class OrderService {
             orderLineService.saveOrderLine(orderLineRequest);
         }
 
-        // TODO: start payment process.
+        PaymentRequest paymentRequest = new PaymentRequest(
+                orderRequest.amount(),
+                orderRequest.paymentMethod(),
+                orderRequest.id(),
+                orderRequest.reference(),
+                customer
+        );
+        paymentClient.requestOrderPayment(paymentRequest);
 
         OrderConfirmation orderConfirmation = new OrderConfirmation(orderRequest.reference(), orderRequest.amount(), orderRequest.paymentMethod(), customer, purchasedProducts);
         orderProducer.sendOrderConfirmation(orderConfirmation);
